@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Prediction App</title>
+    <style>
+        /* General reset and body styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 40px 30px;
+            border-radius: 15px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+            width: 380px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 26px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .holes {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+
+        .hole {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #333;
+            color: #fff;
+            font-size: 30px;
+            text-align: center;
+            line-height: 60px;
+            border: 2px solid #5b5b5b;
+            outline: none;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .hole:focus {
+            border-color: #fff;
+            background-color: #222;
+        }
+
+        /* Buttons for numbers 0-9 */
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            width: 60px;
+            height: 60px;
+            color: white;
+            font-size: 24px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        .red {
+            background-color: #e74c3c; /* Red */
+        }
+
+        .green {
+            background-color: #27ae60; /* Green */
+        }
+
+        .btn:hover {
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+
+        .btn.red::before, .btn.green::before {
+            content: "";
+            position: absolute;
+            top: 5px;
+            bottom: 5px;
+            left: 5px;
+            right: 5px;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-bottom: 15px;
+            transition: background-color 0.3s;
+        }
+
+        .action-btn:hover {
+            background-color: #218838;
+        }
+
+        #resetBtn {
+            background-color: #dc3545;
+        }
+
+        #resetBtn:hover {
+            background-color: #c82333;
+        }
+
+        /* Prediction Result */
+        .prediction-result {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Prediction colors */
+        .prediction-big {
+            background-color: #f8d7a4; /* Light orange */
+            color: #e67e22; /* Orange text */
+        }
+
+        .prediction-small {
+            background-color: #d0e7ff; /* Light blue */
+            color: #3498db; /* Blue text */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Color Prediction Game</h1>
+
+        <!-- Holes for user input -->
+        <div class="holes">
+            <input type="text" class="hole" maxlength="1" readonly>
+            <input type="text" class="hole" maxlength="1" readonly>
+            <input type="text" class="hole" maxlength="1" readonly>
+            <input type="text" class="hole" maxlength="1" readonly>
+            <input type="text" class="hole" maxlength="1" readonly>
+        </div>
+
+        <!-- Buttons for numbers 0-9 -->
+        <div class="buttons">
+            <button class="btn red" data-number="0">0</button>
+            <button class="btn green" data-number="1">1</button>
+            <button class="btn red" data-number="2">2</button>
+            <button class="btn green" data-number="3">3</button>
+            <button class="btn red" data-number="4">4</button>
+            <button class="btn green" data-number="5">5</button>
+            <button class="btn red" data-number="6">6</button>
+            <button class="btn green" data-number="7">7</button>
+            <button class="btn red" data-number="8">8</button>
+            <button class="btn green" data-number="9">9</button>
+        </div>
+
+        <!-- Prediction and action buttons -->
+        <button id="showPrediction" class="action-btn">Show Prediction</button>
+        <button id="resetBtn" class="action-btn">Reset</button>
+
+        <div id="predictionResult" class="prediction-result"></div>
+    </div>
+
+    <script>
+        // Mersenne Twister implementation
+        class MersenneTwister {
+            constructor(seed = Math.random()) {
+                this.mt = new Array(624);
+                this.index = 0;
+                this.init_genrand(seed);
+            }
+
+            init_genrand(seed) {
+                this.mt[0] = seed >>> 0;
+                for (let i = 1; i < 624; i++) {
+                    this.mt[i] = (1812433253 * (this.mt[i - 1] ^ (this.mt[i - 1] >>> 30)) + i) >>> 0;
+                }
+            }
+
+            genrand_int32() {
+                if (this.index === 0) {
+                    this.generate_numbers();
+                }
+
+                let y = this.mt[this.index++];
+                y ^= (y >>> 11);
+                y ^= (y << 7) & 0x9d2c5680;
+                y ^= (y << 15) & 0xefc60000;
+                y ^= (y >>> 18);
+
+                return y >>> 0;
+            }
+
+            generate_numbers() {
+                for (let i = 0; i < 624; i++) {
+                    let y = (this.mt[i] & 0x80000000) | (this.mt[(i + 1) % 624] & 0x7fffffff);
+                    this.mt[i] = this.mt[(i + 397) % 624] ^ (y >>> 1);
+                    if (y % 2 !== 0) {
+                        this.mt[i] ^= 0x9908b0df;
+                    }
+                }
+                this.index = 0;
+            }
+
+            random() {
+                return this.genrand_int32() / 0xffffffff;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const holes = document.querySelectorAll(".hole");
+            const buttons = document.querySelectorAll(".btn");
+            const showPredictionButton = document.getElementById("showPrediction");
+            const resetButton = document.getElementById("resetBtn");
+            const predictionResult = document.getElementById("predictionResult");
+
+            // Mersenne Twister instance for randomness
+            const mt = new MersenneTwister();
+
+            // Add event listeners to number buttons
+            buttons.forEach(button => {
+                button.addEventListener("click", () => {
+                    const number = button.getAttribute("data-number");
+                    const color = button.classList.contains("green") ? "Green" : "Red";
+
+                    for (let i = 0; i < holes.length; i++) {
+                        if (holes[i].value === "") {
+                            holes[i].value = number;
+                            holes[i].style.backgroundColor = color === "Green" ? "#27ae60" : "#e74c3c";  // Set background color
+                            holes[i].setAttribute('data-color', color); // Store the color
+                            break;
+                        }
+                    }
+                });
+            });
+
+            // Show prediction function
+            showPredictionButton.addEventListener("click", () => {
+                const inputs = Array.from(holes).map(hole => {
+                    return {
+                        value: hole.value,
+                        color: hole.getAttribute('data-color')  // Get the stored color
+                    };
+                });
+
+                if (inputs.some(input => !input.value)) {
+                    alert("Please fill in all 5 input fields!");
+                    return;
+                }
+
+                // Use the sum of the numeric values as the seed for randomness
+                const seed = inputs.reduce((sum, input) => sum + parseInt(input.value, 10), 0);
+                const newMt = new MersenneTwister(seed);  // Reseed with the sum
+
+                // Generate a random number for the Big/Small prediction
+                const randomValue = newMt.random();
+                let prediction = randomValue > 0.5 ? "Big" : "Small";
+
+                // Update prediction with corresponding color
+                predictionResult.textContent = `Prediction: ${prediction}`;
+                if (prediction === "Big") {
+                    predictionResult.classList.add("prediction-big");
+                    predictionResult.classList.remove("prediction-small");
+                } else {
+                    predictionResult.classList.add("prediction-small");
+                    predictionResult.classList.remove("prediction-big");
+                }
+            });
+
+            // Reset function
+            resetButton.addEventListener("click", () => {
+                holes.forEach(hole => {
+                    hole.value = "";
+                    hole.style.backgroundColor = "#333";  // Reset background color to default
+                    hole.removeAttribute('data-color');
+                });
+                predictionResult.textContent = "";
+                predictionResult.classList.remove("prediction-big", "prediction-small");
+            });
+        });
+    </script>
+</body>
+</html>
